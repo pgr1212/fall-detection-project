@@ -1,73 +1,56 @@
 import sys
-import cv2
-import numpy as np
-from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QFrame
-from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QSizePolicy
 from object_detect import VideoBox
-from board import BoardApp
+
 
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('YOLOv5 Object Detection')
-        self.setGeometry(100, 100, 1400, 900)
+        self.setWindowTitle('YOLOv5 쓰러짐 감지 시스템')
+        self.resize(2000, 1500)  # 전체 창 크기 (적당히 크게)
 
-        # main layout
-        main_layout = QHBoxLayout()
+        # 메인 레이아웃
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)  # 여백 제거
+        layout.setSpacing(5)
 
-        # left side (video + logs)
-        left_frame = QVBoxLayout()
+        # 1️⃣ WARNING 라벨 (상단 고정)
+        self.warning_label = QLabel("WARNING", self)
+        self.warning_label.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)  # 중앙 정렬
+        self.warning_label.setStyleSheet("""
+            color: red;
+            font-size: 60px;
+            font-weight: bold;
+            background-color: white;
+        """)
+        self.warning_label.hide()
 
-        # video label
+        # 2️⃣ 카메라 출력 라벨 (화면을 꽉 채우도록 설정)
         self.video_label = QLabel(self)
-        self.video_label.setFixedSize(960, 720)
-        self.video_label.setFrameStyle(QFrame.Panel | QFrame.Sunken)
-        left_frame.addWidget(QLabel('실시간 CCTV'))
-        left_frame.addWidget(self.video_label)
+        self.video_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # 창 크기에 맞게 확장
+        self.video_label.setAlignment(Qt.AlignCenter)
+        self.video_label.setStyleSheet("background-color: black;")
 
-        # right side (log)
-        self.log_box = QTextEdit(self)
-        self.log_box.setReadOnly(True)
-        self.log_box.setFixedSize(400, 800)
+        # 레이아웃 배치
+        layout.addWidget(self.warning_label, alignment=Qt.AlignHCenter | Qt.AlignTop)
+        layout.addWidget(self.video_label, stretch=1)  # stretch=1 → 남은 공간을 모두 채움
 
-        main_layout.addLayout(left_frame)
-        main_layout.addWidget(self.log_box)
+        self.setLayout(layout)
 
-        self.setLayout(main_layout)
-
-        # set up VideoBox with PyQt widgets
-        self.video_frame = self.video_label
-        self.board = PyQtBoard(self.log_box)
+        # VideoBox 연결
         self.vb = VideoBox(
             address='쓰러짐 감지!',
-            frame=self,  # not used directly in PyQt
+            frame=self,
             label=self.video_label,
             source=0,
-            board=self.board
+            warning_label=self.warning_label
         )
 
-        # setup timer to simulate video_play
+        # 타이머 실행
         self.timer = QTimer()
-        self.timer.timeout.connect(self.vb.main_page)
-        self.timer.start(30)  # approx 33 fps
-
-
-class PyQtBoard:
-    def __init__(self, log_widget):
-        self.num = 1
-        self.board_data = []
-        self.log_widget = log_widget
-
-    def update_board(self, address, source):
-        from datetime import datetime
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        new_info = f"[{self.num}]\n{current_time}\n{address}\n{source}\n\n"
-        self.num += 1
-        self.board_data.insert(0, new_info)
-        self.log_widget.clear()
-        for info in self.board_data:
-            self.log_widget.append(info)
+        self.timer.timeout.connect(self.vb.video_play)
+        self.timer.start(30)
 
 
 if __name__ == '__main__':
